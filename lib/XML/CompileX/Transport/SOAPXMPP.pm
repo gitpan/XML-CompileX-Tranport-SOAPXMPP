@@ -3,7 +3,7 @@
     use warnings;
     use Encode;
     use base qw(XML::Compile::Transport);
-    our $VERSION = '0.6';
+    our $VERSION = '1.0';
 
     sub init {
         my ($self, $args) = @_;
@@ -26,7 +26,8 @@
         my $hook = $args->{hook};
         my $kind = $args->{kind};
         $hook ||= sub {
-            my ($message, $trace) = @_;
+            my ($messageref, $trace) = @_;
+            my $message = $$messageref;
             # this is the standard code, it is overriden by a given
             # hook that might be sent to this method.
 
@@ -76,11 +77,12 @@
                     $trace->{eventwatcher}->wait;
 
                     $trace->{node} = $self->consume_iq_reply($trace->{iq_id});
+                    return '' unless $trace->{node};
                     my $content = join '',
                       $trace->{node}->text,
                         map { $_->as_string } $trace->{node}->nodes;
 
-                    return $content;
+                    return \$content;
 
                 } else {
                     return '';
@@ -88,7 +90,7 @@
             }
         };
         sub {
-            my ($message, $trace) = @_;
+            my ($messageref, $trace) = @_;
             my $transport_manager = $self;
 
             $trace->{kind} = $kind;
@@ -98,7 +100,7 @@
             $trace->{address} = $self->address;
             $trace->{connection} = $self->connection;
 
-            return $hook->($message, $trace);
+            return $hook->($messageref, $trace);
         }
     }
 
